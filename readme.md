@@ -1,22 +1,12 @@
-# coauthor CLI
+# Github Coauthor CLI
 
-A CLI for coauthor.
+Search and add co-authors to your GitHub commits
 
-## Customizing your CLI
+# Usage
 
-Check out the documentation at https://github.com/infinitered/gluegun/tree/master/docs.
+Enter the interactive process by typing:
 
-## Publishing to NPM
-
-To package your CLI up for NPM, do this:
-
-```shell
-$ npm login
-$ npm whoami
-$ npm test
-
-$ npm publish
-```
+`npx coauthor`
 
 # License
 

@@ -2,7 +2,6 @@
   "name": "coauthor",
   "version": "0.0.3",
   "description": "Search and add co-authors to your GitHub commits",
-  "private": true,
   "bin": {
     "coauthor": "bin/coauthor"
   },
