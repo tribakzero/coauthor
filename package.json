@@ -1,6 +1,6 @@
 {
   "name": "coauthor",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Search and add co-authors to your GitHub commits",
   "bin": {
     "coauthor": "bin/coauthor"
