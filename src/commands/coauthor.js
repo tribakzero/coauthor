@@ -1,43 +1,73 @@
+const CONTRIBUTORS_FROM_LOGS = "git log --all --format='%aN <%aE>' | sort -u";
+const SELF_USERNAME = "git config user.name";
+const CURRENT_COMMIT_BODY = "git log -1 --format=%B";
+const AMEND_MESSAGE = "git commit --allow-empty --amend -m";
+
+const SECTION_TITLE = "Co-Authors";
+const COAUTHOR_PREFIX = "Co-authored-by: ";
+const COAUTHOR_LINE_REGEX = new RegExp(`^.*?${COAUTHOR_PREFIX}(.*? <.*?>).*?$`);
+
 const command = {
   name: 'coauthor',
-  run: async (toolbox) => {
-    const { print, prompt, system } = toolbox
+  run: async ({ print, prompt, system }) => {
+    const currentCommitBody = await system.run(CURRENT_COMMIT_BODY);
 
-    const contributorsFromLogs = await system.run(
-      "git log --all --format='%aN <%aE>' | sort -u"
-    )
+    const currentCommitBodyList = currentCommitBody.split('\n');
 
-    const repoContributors = contributorsFromLogs.split('\n')
+    const { cleanCommitBody, cleanCommitContributors } = currentCommitBodyList.reduce((result, current) => {
+      if (current === SECTION_TITLE) return result;
 
-    const self = await system.exec("git config user.name")
+      const coauthor = current.match(COAUTHOR_LINE_REGEX);
+      if (coauthor && coauthor.length) {
+        result.cleanCommitContributors.push(coauthor[1]);
+        return result;
+      }
 
-    const otherContributors = repoContributors.filter(contributor => !contributor.includes(self))
+      result.cleanCommitBody.push(current);
 
-    const selection = await prompt.ask({
-      type: 'autocomplete',
-      name: 'contributors',
-      message: `"Who did you pair with? (Select multiple with [spacebar] or hit Enter)"`,
-      limit: 5,
-      multiple: true,
-      choices: otherContributors,
-      suggest(s, choices) {
-        return choices.filter((choice) => {
-          return choice.message.toLowerCase().includes(s.toLowerCase())
-        })
-      },
-    })
+      return result;
+    }, { cleanCommitBody: [], cleanCommitContributors: [] });
 
-    const currentMessage = await system.run("git log -1 --format=%B")
+    const coauthorsList = (contributors) => contributors.map(user => `${COAUTHOR_PREFIX}${user}`);
 
-    const ammended = await system.run(
-      `git commit --allow-empty --amend -m "${currentMessage}
+    const coauthorsBlock = (contributors) => contributors.length > 0
+      ? `
 
 Co-Authors
-${selection.contributors.map(user => `Co-authored-by: ${user}`).join('\n')}"`
-    )
+${coauthorsList(contributors).join('\n')}`
+      : '';
 
-    print.info(`Added ${selection.contributors.length} contributor(s).`)
+    const contributorsFromLogs = await system.run(CONTRIBUTORS_FROM_LOGS);
+
+    const repoContributors = contributorsFromLogs.split('\n').filter((item) => item !== '');
+
+    const self = await system.exec(SELF_USERNAME);
+
+    const otherContributors = repoContributors.filter(contributor => !contributor.includes(self));
+
+    const selection = await prompt.ask(
+      {
+        type: 'autocomplete',
+        name: 'contributors',
+        message: `"Who did you pair with? (SPACE to Select. Then ENTER/RETURN to Confirm.)"`,
+        limit: 5,
+        multiple: true,
+        choices: otherContributors,
+        initial: cleanCommitContributors,
+        suggest(s, choices) {
+          return choices.filter((choice) => {
+            return choice.message.toLowerCase().includes(s.toLowerCase())
+          })
+        }
+      }
+    );
+
+    const amended = await system.run(
+      `${AMEND_MESSAGE} "${cleanCommitBody.join('\n')}${coauthorsBlock(selection.contributors)}"`
+    );
+
+    print.info(`Collaborating with other ${selection.contributors.length} contributor(s).`);
   },
-}
+};
 
-module.exports = command
+module.exports = command;
